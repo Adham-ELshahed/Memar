@@ -36,28 +36,14 @@ function Router() {
 
   return (
     <Switch>
-      {!isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : (
-        <>
-          <Route path="/" component={Home} />
-          <Route path="/vendors" component={Vendors} />
-          <Route path="/products" component={Products} />
-          <Route path="/rfq" component={RFQ} />
-          <Route path="/messages" component={Messages} />
-          
-          {user?.role === 'vendor' && (
-            <>
-              <Route path="/vendor/dashboard" component={VendorDashboard} />
-              <Route path="/vendor/onboarding" component={VendorOnboarding} />
-            </>
-          )}
-          
-          {user?.role === 'admin' && (
-            <Route path="/admin/dashboard" component={AdminDashboard} />
-          )}
-        </>
-      )}
+      <Route path="/" component={isAuthenticated ? Home : Landing} />
+      <Route path="/vendors" component={Vendors} />
+      <Route path="/products" component={Products} />
+      <Route path="/rfq" component={RFQ} />
+      <Route path="/messages" component={Messages} />
+      <Route path="/vendor/dashboard" component={VendorDashboard} />
+      <Route path="/vendor/onboarding" component={VendorOnboarding} />
+      <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route component={NotFound} />
     </Switch>
   );
