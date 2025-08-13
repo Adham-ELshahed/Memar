@@ -146,8 +146,6 @@ export class DatabaseStorage implements IStorage {
     limit?: number; 
     offset?: number;
   }): Promise<Organization[]> {
-    let query = db.select().from(organizations);
-    
     const conditions = [];
     if (filters?.status && filters.status !== 'all') {
       conditions.push(eq(organizations.status, filters.status as any));
@@ -162,20 +160,13 @@ export class DatabaseStorage implements IStorage {
       );
     }
     
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
+    const baseQuery = db.select().from(organizations);
+    const whereQuery = conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
+    const orderedQuery = whereQuery.orderBy(desc(organizations.rating));
+    const limitedQuery = filters?.limit ? orderedQuery.limit(filters.limit) : orderedQuery;
+    const finalQuery = filters?.offset ? limitedQuery.offset(filters.offset) : limitedQuery;
     
-    query = query.orderBy(desc(organizations.rating));
-    
-    if (filters?.limit) {
-      query = query.limit(filters.limit);
-    }
-    if (filters?.offset) {
-      query = query.offset(filters.offset);
-    }
-    
-    return await query;
+    return await finalQuery;
   }
 
   async getOrganization(id: string): Promise<Organization | undefined> {
@@ -229,8 +220,6 @@ export class DatabaseStorage implements IStorage {
     limit?: number;
     offset?: number;
   }): Promise<Product[]> {
-    let query = db.select().from(products);
-    
     const conditions = [];
     if (filters?.organizationId) {
       conditions.push(eq(products.organizationId, filters.organizationId));
@@ -251,20 +240,13 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(products.isActive, filters.isActive));
     }
     
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
+    const baseQuery = db.select().from(products);
+    const whereQuery = conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
+    const orderedQuery = whereQuery.orderBy(desc(products.rating), desc(products.createdAt));
+    const limitedQuery = filters?.limit ? orderedQuery.limit(filters.limit) : orderedQuery;
+    const finalQuery = filters?.offset ? limitedQuery.offset(filters.offset) : limitedQuery;
     
-    query = query.orderBy(desc(products.rating), desc(products.createdAt));
-    
-    if (filters?.limit) {
-      query = query.limit(filters.limit);
-    }
-    if (filters?.offset) {
-      query = query.offset(filters.offset);
-    }
-    
-    return await query;
+    return await finalQuery;
   }
 
   async getProduct(id: string): Promise<Product | undefined> {
@@ -294,8 +276,6 @@ export class DatabaseStorage implements IStorage {
     limit?: number;
     offset?: number;
   }): Promise<Rfq[]> {
-    let query = db.select().from(rfqs);
-    
     const conditions = [];
     if (filters?.userId) {
       conditions.push(eq(rfqs.userId, filters.userId));
@@ -307,20 +287,13 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(rfqs.categoryId, filters.categoryId));
     }
     
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
+    const baseQuery = db.select().from(rfqs);
+    const whereQuery = conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
+    const orderedQuery = whereQuery.orderBy(desc(rfqs.createdAt));
+    const limitedQuery = filters?.limit ? orderedQuery.limit(filters.limit) : orderedQuery;
+    const finalQuery = filters?.offset ? limitedQuery.offset(filters.offset) : limitedQuery;
     
-    query = query.orderBy(desc(rfqs.createdAt));
-    
-    if (filters?.limit) {
-      query = query.limit(filters.limit);
-    }
-    if (filters?.offset) {
-      query = query.offset(filters.offset);
-    }
-    
-    return await query;
+    return await finalQuery;
   }
 
   async getRfq(id: string): Promise<Rfq | undefined> {
@@ -371,8 +344,6 @@ export class DatabaseStorage implements IStorage {
     limit?: number;
     offset?: number;
   }): Promise<Order[]> {
-    let query = db.select().from(orders);
-    
     const conditions = [];
     if (filters?.userId) {
       conditions.push(eq(orders.userId, filters.userId));
@@ -384,20 +355,13 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(orders.status, filters.status as any));
     }
     
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
+    const baseQuery = db.select().from(orders);
+    const whereQuery = conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
+    const orderedQuery = whereQuery.orderBy(desc(orders.createdAt));
+    const limitedQuery = filters?.limit ? orderedQuery.limit(filters.limit) : orderedQuery;
+    const finalQuery = filters?.offset ? limitedQuery.offset(filters.offset) : limitedQuery;
     
-    query = query.orderBy(desc(orders.createdAt));
-    
-    if (filters?.limit) {
-      query = query.limit(filters.limit);
-    }
-    if (filters?.offset) {
-      query = query.offset(filters.offset);
-    }
-    
-    return await query;
+    return await finalQuery;
   }
 
   async getOrder(id: string): Promise<Order | undefined> {
@@ -438,8 +402,6 @@ export class DatabaseStorage implements IStorage {
     limit?: number;
     offset?: number;
   }): Promise<Message[]> {
-    let query = db.select().from(messages);
-    
     const conditions = [];
     if (filters?.userId) {
       conditions.push(
@@ -456,20 +418,13 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(messages.rfqId, filters.rfqId));
     }
     
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
+    const baseQuery = db.select().from(messages);
+    const whereQuery = conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
+    const orderedQuery = whereQuery.orderBy(desc(messages.createdAt));
+    const limitedQuery = filters?.limit ? orderedQuery.limit(filters.limit) : orderedQuery;
+    const finalQuery = filters?.offset ? limitedQuery.offset(filters.offset) : limitedQuery;
     
-    query = query.orderBy(desc(messages.createdAt));
-    
-    if (filters?.limit) {
-      query = query.limit(filters.limit);
-    }
-    if (filters?.offset) {
-      query = query.offset(filters.offset);
-    }
-    
-    return await query;
+    return await finalQuery;
   }
 
   async createMessage(message: InsertMessage): Promise<Message> {
