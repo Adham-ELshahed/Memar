@@ -1,0 +1,302 @@
+# Build a Bilingual B2B/B2C Marketplace for Construction & Home-Fitout (Qatar)
+
+## 0) Project Overview
+
+Create *“Meamar”, a bilingual (Arabic/English, RTL/LTR) marketplace web app + API (and optionally a React Native mobile app) that connects **vendors* (companies/shops in decoration, furniture, contracting, electrical supplies, sanitary materials) with *buyers* (individuals, contractors, businesses) in Qatar.
+Core flows: *discover → compare → message/RFQ → quote → cart/checkout → delivery/pickup → ratings & reviews. Include an **admin console* for moderation and operations.
+
+Prioritize clean architecture, test coverage, DX (developer experience), security, and production readiness on Replit.
+
+---
+
+## 1) Tech & Architecture (opinionated but adjust if needed)
+
+* *Frontend (Web):* React + TypeScript, Next.js App Router, Server Actions, TailwindCSS, Headless UI, RTL support (dir="rtl" switch), i18n via next-intl.
+* *Mobile (optional in Phase 2):* React Native + Expo sharing the API.
+* *Backend:* Node.js + TypeScript with *NestJS* (modular, DI, guards).
+* *API:* REST (document with OpenAPI/Swagger) + lightweight WebSocket for realtime chat/notifications. Keep API boundary clean to support mobile.
+* *DB:* PostgreSQL (Prisma ORM). Use UUIDs. Full-text search (Postgres tsvector) + optional Redis for caching/rate limits/queues.
+* *Auth:* NextAuth (email/pass + OAuth ready). Role-based Access Control (RBAC): buyer, vendor_admin, vendor_staff, super_admin.
+* *Storage:* S3-compatible (e.g., Cloudflare R2/MinIO) for images & documents (trade license, invoices).
+* *Payments (abstracted):* Payment provider interface supporting *Stripe* or *Tap* (configure in .env). Support cards and local wallets later. Store payment-intent IDs, webhook verification, and idempotency.
+* *Comms:* In-app chat (WS), email via SMTP provider adapter (e.g., Resend/Sendgrid), optional WhatsApp/SMS adapter for OTP.
+* *Infra/DevOps:*
+
+  * Replit Nix + Dockerfile.
+  * docker-compose for local dev (api, web, db, redis, minio).
+  * CI (GitHub Actions) for lint, test, typecheck, build, migrations.
+  * Seed script with sample vendors, products, and Arabic/English content.
+* *Observability:* Pino logging JSON, request IDs, Sentry integration (web+api), health checks (/healthz).
+* *Security:* Helmet, CORS, CSRF where needed, bcrypt/argon2 password hashing, Prisma row-level authorization, rate-limits, input validation (Zod), file type/size validation, audit log.
+* *Performance:* Image optimization, incremental static generation where safe, DB indices, Redis caching, pagination, N+1 protection.
+
+---
+
+## 2) Core Domains & Entities
+
+* *User* {id, name, email, phone, role, locale, orgId?, addresses\[], kycStatus}
+* *Organization (Vendor)* {id, legalName, tradeName, CRNumber, licenses\[], address, contacts, categories\[], deliveryOptions, bankInfo (tokenized), status}
+* *Category* (tree): decoration/furniture/contracting/electrical/sanitary → subcategories
+* *Product/Service* {id, orgId, name en/ar, description en/ar, specs JSON, SKU, unit (piece/meter/box), price, tieredPricing, minOrderQty, stock, media\[], attributes\[], tags\[], status}
+* *RFQ* {id, buyerId, items\[{categoryId|productId?, qty, specNote, attachments\[]}], deliveryLocation, dueDate, status (open/quoted/awarded/closed)}
+* *Quote* {id, rfqId, vendorId, items\[{qty, unitPrice, leadTime, altOption?}], validity, total, taxes, shipping, terms, status (sent/accepted/rejected)}
+* *Cart* {id, buyerId, items\[{productId, qty, priceAtAdd}]}
+* *Order* {id, buyerId, vendorId, items, totals {sub, shipping, tax, grand}, paymentStatus, fulfillmentStatus, shippingInfo, invoiceNo}
+* *Payment* {id, orderId, provider, intentId, amount, currency, status, events\[]}
+* *Review* {id, orderId, buyerId, targetType ('product'|'vendor'), rating(1–5), text, media\[], status}
+* *Message/Thread* {id, participants\[], rfqId?|orderId?, messages\[{senderId, text, attachments\[], ts}]}
+* *Admin/Audit* {id, actorId, action, entity, before, after, ts}
+* *CMS* (for content pages, banners, FAQs)
+* *Notification* {id, userId, type, payload, readAt?}
+
+Include migration files and Prisma schema for all entities.
+
+---
+
+## 3) Feature Set & User Journeys
+
+### 3.1 Onboarding & Roles
+
+* Email/phone signup with OTP option, password rules, email verification.
+* Vendor onboarding wizard: company info, CR documents upload, category selection, pickup/delivery options, bank info (tokenized), KYC review queue for admins.
+* Staff invites under vendor org with granular permissions (catalog manager, sales, finance).
+
+### 3.2 Discovery & Search
+
+* Category tree pages, vendor pages, product pages.
+* *Search* with filters: category, subcategory, vendor, price range, brand, availability, rating, delivery time, location.
+* Arabic/English search, transliteration tolerant; store searchable tsvector for both langs.
+* Saved searches & alerts.
+
+### 3.3 RFQ & Quotes (B2B)
+
+* Create RFQ from scratch or from product detail (“Request bulk quote”).
+* Vendors receive RFQ notifications; propose quotes with alternates/substitutes and lead times.
+* Buyer compares quotes side-by-side; award (fully or per-line) → auto-create draft order(s).
+* Private chat linked to RFQ/Quote.
+
+### 3.4 Direct Purchase (B2C-like)
+
+* Cart, checkout, promo codes (scaffold), tax/VAT field (configurable), shipping methods (delivery/pickup).
+* Payment intent, webhook handling, order confirmation emails & PDF invoice generation.
+
+### 3.5 Fulfillment & After-Sales
+
+* Vendor order dashboard: confirm, partial fulfill, mark shipped, add tracking, delivery notes.
+* Buyer order tracking & support tickets.
+* Ratings & reviews with moderation queue, photo/video uploads, abuse reports.
+
+### 3.6 Messaging & Notifications
+
+* Realtime in-app chat (threads by RFQ/Order/Vendor); file attachments (pdf, images).
+* Notification center + email digests; user preferences.
+
+### 3.7 Admin Console
+
+* Dashboards: GMV, orders, refunds, conversion, top vendors/products, RFQ pipeline.
+* User/vendor management, KYC verification, document viewer, strike/suspension.
+* Catalog moderation (flagged items), review moderation, featured listings & homepage banners.
+* CMS: pages (About, T\&Cs, Privacy, Returns), FAQs, announcements.
+* System: feature flags, config (currencies, VAT, locales), audit log, role editor.
+
+### 3.8 Localization & Accessibility
+
+* Full *Arabic/English* content, togglable; persistent RTL/LTR layout switch.
+* All UI strings externalized.
+* WCAG AA: semantic HTML, keyboard nav, focus states, alt text, color contrast.
+
+---
+
+## 4) Non-Functional Requirements
+
+* *Security:* OWASP ASVS L2 mindset; server-side authorization on every resource (row scoping).
+* *Privacy:* PII minimization, encrypted at rest/transport, configurable data retention.
+* *Reliability:* Graceful retries for webhooks; background jobs for emails, thumbnails.
+* *Scalability:* Stateless API, cache headers, pagination everywhere, job queue (bullmq) with Redis.
+* *Compliance placeholders:* Terms, Privacy, Cookie, Returns/Refunds, KYC policy pages.
+
+---
+
+## 5) Deliverables & Repository Structure
+
+
+/apps
+  /web          # Next.js (SSR/ISR), Tailwind, next-intl
+  /api          # NestJS, Prisma, Swagger at /docs
+  /mobile       # (Phase 2) Expo React Native
+/packages
+  /ui           # shared UI components
+  /config       # ESLint, TS, Prettier shared
+  /i18n         # messages, locale helpers
+/.github/workflows/ci.yml
+/docker
+  docker-compose.yml  # db, redis, minio, mailhog
+prisma/schema.prisma
+seed/seed.ts
+.env.example
+README.md
+ARCHITECTURE.md
+SECURITY.md
+OPENAPI.yaml  # exported from Nest Swagger
+
+
+*README* must include:
+
+* Install, run locally (with Docker) and on Replit.
+* Environment variables with descriptions.
+* Migrations & seeding.
+* How to switch payment provider via .env.
+
+*ENV Variables (minimum):*
+
+
+DATABASE_URL=
+REDIS_URL=
+STORAGE_ENDPOINT= STORAGE_BUCKET= STORAGE_ACCESS_KEY= STORAGE_SECRET_KEY=
+NEXTAUTH_SECRET= NEXTAUTH_URL=
+EMAIL_FROM= SMTP_HOST= SMTP_PORT= SMTP_USER= SMTP_PASS=
+PAYMENT_PROVIDER=stripe|tap
+STRIPE_SECRET= STRIPE_WEBHOOK_SECRET=
+TAP_SECRET= TAP_WEBHOOK_SECRET=
+APP_BASE_URL=
+SENTRY_DSN=
+DEFAULT_LOCALE=ar
+SUPPORTED_LOCALES=ar,en
+VAT_PERCENT=0
+
+
+---
+
+## 6) Implementation Plan & Acceptance Criteria
+
+### Phase 1 (MVP, Web + API)
+
+* [ ] Auth + RBAC finished, protected routes and API guards.
+* [ ] Category tree CRUD (admin), vendor onboarding & KYC review.
+* [ ] Product/service catalog CRUD with image uploads to S3-compatible storage.
+* [ ] Search with filters + pagination; Arabic/English content and RTL switch.
+* [ ] RFQ creation, vendor quoting, quote comparison, award to order.
+* [ ] Cart/Checkout integrated with selected payment provider. Webhooks verified & idempotent.
+* [ ] Orders lifecycle (confirm/ship/deliver), invoices (PDF).
+* [ ] Reviews with moderation queue.
+* [ ] Admin console pages shipped (users, vendors, catalog, reviews, CMS basics).
+* [ ] Notifications (in-app) + email via SMTP adapter.
+* [ ] Swagger docs live at /api/docs; Postman collection exported.
+* [ ] E2E happy-path tests (Playwright) for: sign-up, vendor onboarding, RFQ→Quote→Order, checkout, review.
+* [ ] 80%+ unit test coverage for core services (auth, catalog, RFQ, order, payment).
+
+### Phase 2 (Enhancements)
+
+* [ ] React Native app with login, search, RFQ, chat, order tracking.
+* [ ] Saved lists, price alerts, bulk import (CSV) for vendors.
+* [ ] Promotions/coupons, advanced analytics, BI export.
+* [ ] WhatsApp/SMS notifications adapter.
+* [ ] Delivery partner integrations (abstracted shipping interface).
+
+*Performance Gates*
+
+* First Contentful Paint < 2.5s on 3G Fast for key pages.
+* Largest Contentful Paint < 3.0s; CLS < 0.1.
+* API P95 < 300ms for read endpoints; < 700ms for write.
+
+---
+
+## 7) Key Screens & Components (Web)
+
+* Public: Home (hero + featured categories/vendors), Category grid/list, Product detail, Vendor profile, Search results, Sign in/up, Password reset.
+* Buyer: Dashboard, RFQs, Quotes compare, Cart/Checkout, Orders, Messages, Reviews, Account & Addresses.
+* Vendor: Dashboard (orders, RFQs), Catalog Manager, Quotes Composer, Orders & Fulfillment, Organization Settings, Staff & Permissions, Payouts (placeholder).
+* Admin: Dashboard, KYC queue, Users/Vendors CRUD, Catalog moderation, Reviews moderation, CMS, Config, Audit log.
+
+Use Tailwind components (cards, tables, tabs, breadcrumbs, skeleton loaders), ensure RTL-ready. Include date/number formatting per locale.
+
+---
+
+## 8) API Outline (examples)
+
+* POST /auth/signup, POST /auth/login, POST /auth/verify-email
+* GET /categories, POST /admin/categories
+* GET /products?search=&category=&minPrice=&maxPrice=&vendor=&sort=
+* POST /vendors (onboarding), GET /vendors/:id
+* POST /rfqs, GET /rfqs/:id, POST /rfqs/:id/quotes
+* POST /quotes/:id/award
+* POST /cart/items, POST /checkout/session
+* POST /payments/webhook  (verify, update)
+* GET /orders, PATCH /orders/:id/status
+* POST /reviews, GET /reviews?target=product|vendor
+* GET /notifications, PATCH /notifications/:id/read
+* GET /admin/kyc, PATCH /admin/vendors/:id/status
+* GET /healthz
+
+Provide full OpenAPI via Nest Swagger decorators; generate OPENAPI.yaml.
+
+---
+
+## 9) Data Validation & Security Rules
+
+* Use *Zod DTOs* for all requests: lengths, enums, email/phone formats, file sizes/types.
+* Ownership checks: user can only access their RFQs, orders, carts; vendors can only see their quotes, orders, catalog; admins see all.
+* Prevent *price tampering* by recalculating totals server-side; *never* trust client prices.
+* Webhooks: verify signature, store raw body, log events.
+* Rate limits: auth endpoints and search.
+* File uploads: antivirus scan stub (hook) + MIME/extension checks.
+
+---
+
+## 10) Testing & QA
+
+* Unit tests (Jest) for services/repositories/guards.
+* Integration tests using a test DB schema.
+* Playwright E2E for top user journeys (Arabic and English).
+* Seed realistic fixtures (Arabic/English names, categories, products, RFQs).
+* Lint (eslint), format (prettier), typecheck gate in CI.
+
+---
+
+## 11) Analytics & SEO
+
+* SEO-ready Next.js (meta, sitemap, robots.txt, OpenGraph).
+* Basic analytics adapter (pluggable).
+* Track key funnel events (view\_category, view\_product, start\_rfq, submit\_quote, add\_to\_cart, checkout\_start, purchase).
+* Server-side event logging with privacy.
+
+---
+
+## 12) Deliver at the end
+
+1. Running app on Replit with persistent Postgres/Redis (or instructions to connect to managed services).
+2. README.md, ARCHITECTURE.md, SECURITY.md, OPENAPI.yaml.
+3. .env.example with all keys.
+4. Prisma migrations + seed.ts.
+5. Admin user + sample vendor and buyer accounts.
+6. Screenshots/GIFs of main flows in the README.
+
+---
+
+## 13) Visual & UX Notes
+
+* Clean, business-friendly theme; responsive; breadcrumb and sticky filters on search.
+* RTL polish: mirrored layouts, proper number/date direction, left/right icons switched when RTL.
+* Empty states, skeletons, toast notifications, form validation messages in both languages.
+* Price displays in QAR by default (configurable multi-currency later).
+
+---
+
+## 14) Licensing & Legal
+
+* Include template pages: *Terms, **Privacy, **Returns/Refunds, **KYC Policy* (editable in CMS).
+* Add footer links and a consent banner placeholder.
+
+---
+
+## 15) Stretch Ideas (backlog)
+
+* Vendor service areas & map search.
+* BOM (bill of materials) builder for contractors.
+* Project boards for multi-vendor orders.
+* Escrow/partial release payments interface (behind feature flag).
+* Dispute resolution workflow.
+
+---
+
+*Build this exactly as specified. If a detail is ambiguous, choose sensible defaults and document the choice in README under “Assumptions.” Provide high-quality, readable code with comments, tests, and seeds.*
