@@ -1,0 +1,42 @@
+{
+  "nav": {
+    "home": "Home",
+    "vendors": "Vendors",
+    "products": "Products",
+    "rfq": "Request Quote",
+    "messages": "Messages",
+    "login": "Login",
+    "logout": "Logout",
+    "dashboard": "Dashboard"
+  },
+  "hero": {
+    "title": "Connect with Qatar's Top Construction Suppliers",
+    "subtitle": "Your trusted B2B/B2C marketplace for construction materials and home fitout solutions",
+    "cta": "Get Started",
+    "browseProducts": "Browse Products"
+  },
+  "categories": {
+    "title": "Browse by Category",
+    "viewAll": "View All"
+  },
+  "vendors": {
+    "title": "Featured Vendors",
+    "verified": "Verified",
+    "rating": "Rating",
+    "viewProfile": "View Profile"
+  },
+  "products": {
+    "title": "Products",
+    "search": "Search products...",
+    "filter": "Filter",
+    "sort": "Sort by",
+    "addToCart": "Add to Cart",
+    "requestQuote": "Request Quote"
+  },
+  "footer": {
+    "about": "About Meamar",
+    "description": "Qatar's leading marketplace for construction and home fitout materials",
+    "contact": "Contact Us",
+    "follow": "Follow Us"
+  }
+}
